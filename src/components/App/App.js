@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { useState, useEffect } from "react";
 import { Spinner } from "../Loader/Loader";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -8,78 +8,73 @@ import { Btn } from "../Button/Button";
 import { ImageGallery } from "../ImageGallery/ImageGallery";
 import { Modal } from "../Modal/Modal";
 
-export default class App extends Component {
-  state = {
-    images: [],
-    page: 1,
-    selectedImage: null,
-    searchImage: null,
-    status: "free",
-    error: null,
-    loading: false,
-    showModal: false,
-  };
+export default function App() {
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [selectedImage, setSelectedImages] = useState(null);
+  const [searchImage, setSearchImages] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  async componentDidUpdate(prevProps, prevState) {
-    const { searchImage, page } = this.state;
-
-    if (prevState.searchImage !== searchImage || prevState.page !== page) {
+  useEffect(() => {
+    if (!searchImage) return;
+    async function getFetchImages() {
       try {
-        this.setState({ status: "pending" });
-        const gallery = await fetchImages(searchImage, page);
+        setLoading("true");
 
-        this.setState({ status: "resolved" });
+        const gallery = await fetchImages(searchImage, page);
 
         if (searchImage.trim() === "" || gallery.length === 0) {
           return toast.error(`таких картинок нет, попробуй еще`);
         }
-        this.setState({ images: [...this.state.images, ...gallery] });
+
+        setImages((images) => [...images, ...gallery]);
 
         window.scrollTo({
           top: document.documentElement.scrollHeight,
           behavior: "smooth",
         });
       } catch (error) {
-        this.setState({ status: "reject" });
         toast.error("ошибка");
+      } finally {
+        setLoading("false");
       }
     }
-  }
 
-  handleSubmit = (searchImage) => {
-    this.setState({ searchImage: searchImage, page: 1, images: [] }); //перепроверить
+    getFetchImages();
+  }, [page, searchImage]);
+
+  const handleSubmit = (searchImage) => {
+    setSearchImages(searchImage);
+    setPage(1);
+    setImages([]);
   };
 
-  handleSelectImg = (imageURL) => {
-    this.setState((prevState) => ({
-      showModal: !prevState.showModal,
-      selectedImage: imageURL,
-    }));
+  const handleSelectImg = (imageURL) => {
+    setShowModal(!showModal);
+    setSelectedImages(imageURL);
   };
 
-  BtnLoadMore = () => {
-    this.setState((p) => ({ page: p.page + 1 }));
+  const BtnLoadMore = () => {
+    setPage((page) => page + 1);
   };
 
-  render() {
-    const { images, status, showModal, selectedImage } = this.state;
-    const showBtn = images.length >= 1;
+  const showBtn = images.length >= 1;
 
-    return (
-      <div>
-        <SearchBar onSubmit={this.handleSubmit} />
-        {status === "pending" && <Spinner />}
-        <ImageGallery images={images} onSelect={this.handleSelectImg} />
-        {showBtn && <Btn onClick={this.BtnLoadMore} />}
-        {showModal && (
-          <Modal
-            src={selectedImage.largeImageURL}
-            alt={selectedImage.tags}
-            onSelect={this.handleSelectImg}
-          />
-        )}
-        <Toaster />
-      </div>
-    );
-  }
+  return (
+    <div>
+      <SearchBar onSubmit={handleSubmit} />
+      {loading === "true" && <Spinner />}
+      <ImageGallery images={images} onSelect={handleSelectImg} />
+      {showBtn && <Btn onClick={BtnLoadMore} />}
+      {showModal && (
+        <Modal
+          src={selectedImage.largeImageURL}
+          alt={selectedImage.tags}
+          onSelect={handleSelectImg}
+        />
+      )}
+      <Toaster />
+    </div>
+  );
 }
